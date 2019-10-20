@@ -2,7 +2,7 @@
 
 SECRET_NAME="$AWS_DEFAULT_REGION-ecr-registry"
 TOKEN=$(aws ecr get-login --region "$AWS_DEFAULT_REGION" --registry-ids "$AWS_ACCOUNT_ID" | cut -d' ' -f6)
-echo "ENV variables setup done."
+echo "Beginning processing namespaces: $NAMESPACES."
 for NAMESPACE in $NAMESPACES
 do
   echo "Working on namespace $NAMESPACE."
