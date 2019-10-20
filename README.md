@@ -44,26 +44,26 @@ spec:
           restartPolicy: Never
           terminationGracePeriodSeconds: 30
           containers:
-            name: ecr-cred-helper
-            image: bloveless/ecr-credential-helper:latest
-            imagePullPolicy: IfNotPresent
-            env:
-              - name: AWS_ACCOUNT_ID
-                value: 3xxxxxxxxxx6
-              - name: AWS_DEFAULT_REGION
-                value: us-west-2
-              - name: AWS_SECRET_ACCESS_KEY
-                valueFrom:
-                  secretKeyRef:
-                    name: aws-access-keys-secret
-                    key: secretAccessKey
-              - name: AWS_ACCESS_KEY_ID
-                valueFrom:
-                  secretKeyRef:
-                    name: aws-access-keys-secret
-                    key: accessKeyId
-              - name: EMAIL
-                value: my-cool-email@gmail.com
-              - name: NAMESPACES
-                value: "default namespace-1 namespace-2"
+            - name: ecr-cred-helper
+              image: bloveless/ecr-credential-helper:0.5.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: AWS_ACCOUNT_ID
+                  value: "3xxxxxxxxxx6"
+                - name: AWS_DEFAULT_REGION
+                  value: us-west-2
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-access-keys-secret
+                      key: secretAccessKey
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-access-keys-secret
+                      key: accessKeyId
+                - name: EMAIL
+                  value: my-cool-email@gmail.com
+                - name: NAMESPACES
+                  value: "default namespace-1 namespace-2"
 ```
