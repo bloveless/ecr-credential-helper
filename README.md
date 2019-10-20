@@ -7,10 +7,15 @@ in the NAMESPACES environment variable and will get/set a new docker registry se
 All environment variables are required.
 
 `AWS_ACCOUNT_ID`: AWS Account Id
+
 `AWS_SECRET_ACCESS_KEY`: AWS Secret Access Key
+
 `AWS_ACCESS_KEY_ID`: AWS Access Key ID
+
 `AWS_DEFAULT_REGION`: AWS Region
+
 `EMAIL`: This doesn't really matter but the kubernetes docker registry command requires it. Just set it to your email.
+
 `NAMESPACES`: The namespaces to set the ecr pull credentials for. These are space separated.
 
 ## Example kubernetes usage
