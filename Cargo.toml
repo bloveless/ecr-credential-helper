@@ -22,3 +22,5 @@ rusoto_ecr = "0.42.0"
 serde_json = "1.0.44"
 tokio = { version = "0.2.6", features = ["full"] }
 futures = "0.3.1"
+serde = "1.0.104"
+base64 = "0.11.0"
