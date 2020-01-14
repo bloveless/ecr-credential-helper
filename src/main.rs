@@ -9,10 +9,18 @@ use rusoto_core::Region;
 use rusoto_ecr::{EcrClient, Ecr, GetAuthorizationTokenRequest};
 
 use kube::{
-    api::{RawApi, PostParams},
+    api::{RawApi, PostParams, DeleteParams},
     client::APIClient,
     config,
 };
+
+#[derive(Clone)]
+struct DockerLogin {
+    region: Option<Region>,
+    username: Option<String>,
+    password: Option<String>,
+    email: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -20,66 +28,37 @@ async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info,kube=trace");
 
     let aws_account_id = env::var("AWS_ACCOUNT_ID").unwrap();
-    let aws_secret_access_key = env::var("AWS_SECRET_ACCESS_KEY").unwrap();
-    let aws_access_key_id = env::var("AWS_ACCESS_KEY_ID").unwrap();
+    // let aws_secret_access_key = env::var("AWS_SECRET_ACCESS_KEY").unwrap();
+    // let aws_access_key_id = env::var("AWS_ACCESS_KEY_ID").unwrap();
     let aws_default_region = env::var("AWS_DEFAULT_REGION").unwrap();
     let email = env::var("EMAIL").unwrap();
     let namespaces = env::var("NAMESPACES").unwrap();
 
-    println!(
-        "AWS_ACCOUNT_ID: {}\nAWS_SECRET_ACCESS_KEY: {}\nAWS_ACCESS_KEY_ID: {}\nAWS_DEFAULT_REGION: {}\nEMAIL: {}\nNAMESPACES: {}\n",
-        aws_account_id,
-        aws_secret_access_key,
-        aws_access_key_id,
-        aws_default_region,
-        email,
-        namespaces
-    );
-
     let config = config::load_kube_config().await?;
     let client = APIClient::new(config);
 
-    let authorization_token = get_aws_authorization_token(Region::UsWest2, &aws_account_id)?;
-    println!("AUTHORIZATION TOKEN: {}\n", authorization_token);
+    let docker_login = get_docker_login_from_aws_ecr(
+        aws_default_region.parse::<Region>()?,
+        aws_account_id.as_str(),
+        email.as_str()
+    )?;
 
     let ecr_url = format!("https://{}.dkr.ecr.{}.amazonaws.com", aws_account_id, aws_default_region);
-    let secret_data = json!({
-        "auths": {
-            ecr_url: {
-                "username": "AWS",
-                "password": authorization_token,
-                "email": email,
-                "auth": base64::encode(format!("AWS:{}", authorization_token).as_bytes()),
-            },
-        }
-    });
 
-    let secret_yaml = json!({
-        "apiVersion": "v1",
-        "type": "kubernetes.io/dockerconfigjson",
-        "metadata": {
-            "name": "us-west-2-ecr-registry",
-            "namespace": "mockrift-com",
-        },
-        "data": {
-            ".dockerconfigjson": base64::encode(secret_data.to_string().as_bytes()),
-        },
-    });
-
-    println!("Secret yaml: {}", secret_yaml);
-
-    let sec = RawApi::v1Secret().within("mockrift-com");
-    let req = sec.create(&PostParams::default(), secret_yaml.to_string().as_bytes().to_vec())?;
-    let res = client.request_text(req).await?;
-    println!("Response: {}", res);
-    //let _ = client.request_status::<Secret>(req).await.map(|res| println!("{:?}", res));
-
+    for namespace in namespaces.split(",") {
+        println!("-- Processing namespace \"{}\" --", namespace);
+        delete_secret_in_namespace(client.clone(), aws_default_region.as_str(), namespace).await?;
+        update_secret_in_namespace(client.clone(), aws_default_region.as_str(), namespace, ecr_url.as_str(), docker_login.clone()).await?;
+        println!("-- Finished processing namespace \"{}\" --\n", namespace);
+    }
 
     Ok(())
 }
 
-fn get_aws_authorization_token(region: Region, aws_account_id: &String) -> Result<String, Box<dyn Error>> {
-    let client = EcrClient::new(region);
+fn get_docker_login_from_aws_ecr(region: Region, aws_account_id: &str, email: &str) -> Result<DockerLogin, Box<dyn Error>> {
+    println!("Retrieving docker login from aws ecr");
+
+    let client = EcrClient::new(region.clone());
     let token_request = GetAuthorizationTokenRequest {
         registry_ids: Some(vec![aws_account_id.to_string()])
     };
@@ -93,6 +72,80 @@ fn get_aws_authorization_token(region: Region, aws_account_id: &String) -> Resul
         .ok_or("Unable to get authorization data")?;
 
     let token = auth_data.first().ok_or("Response didn't contain a token")?;
+    let authorization_token = token.authorization_token.clone().unwrap();
+    let dec_authorization_token = String::from_utf8(base64::decode(&authorization_token)?)?;
+    let mut username: Option<String> = None;
+    let mut password: Option<String> = None;
 
-    Ok(token.authorization_token.clone().unwrap())
+    for (i, token) in dec_authorization_token.split(":").enumerate() {
+        if i == 0 {
+            username = Some(token.to_string());
+        } else if i == 1 {
+            password = Some(token.to_string());
+        }
+    }
+
+    println!("Successfully retrieved docker login from aws ecr\n");
+
+    Ok(DockerLogin{
+        region: Some(region),
+        username,
+        password,
+        email: Some(email.to_string()),
+    })
+}
+
+async fn delete_secret_in_namespace(client: APIClient, region: &str, namespace: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let secret_name = format!("{}-ecr-registry", region);
+    println!("Deleting secret \"{}\" from namespace \"{}\"", secret_name, namespace);
+
+    let sec = RawApi::v1Secret().within(namespace);
+    let req = sec.delete(secret_name.as_str(), &DeleteParams::default())?;
+    let _ = client.request_text(req).await?;
+
+    println!("Successfully delete secret \"{}\" from namespace \"{}\"", secret_name, namespace);
+
+    Ok(())
+}
+
+async fn update_secret_in_namespace(
+    client: APIClient,
+    region: &str,
+    namespace: &str,
+    ecr_url: &str,
+    docker_login: DockerLogin
+) -> Result<(), Box<dyn std::error::Error>> {
+    let secret_name = format!("{}-ecr-registry", region);
+    println!("Creating new secret \"{}\" in namespace \"{}\"", secret_name, namespace);
+
+    let secret_data = json!({
+        "auths": {
+            ecr_url: {
+                "username": "AWS",
+                "password": docker_login.password.clone().unwrap(),
+                "email": docker_login.email.unwrap(),
+                "auth": base64::encode(format!("{}:{}", docker_login.username.unwrap(), docker_login.password.unwrap()).as_bytes()),
+            },
+        }
+    });
+
+    let secret_yaml = json!({
+        "apiVersion": "v1",
+        "type": "kubernetes.io/dockerconfigjson",
+        "metadata": {
+            "name": secret_name,
+            "namespace": namespace,
+        },
+        "data": {
+            ".dockerconfigjson": base64::encode(secret_data.to_string().as_bytes()),
+        },
+    });
+
+    let sec = RawApi::v1Secret().within(namespace);
+    let req = sec.create(&PostParams::default(), secret_yaml.to_string().as_bytes().to_vec())?;
+    let _ = client.request_text(req).await?;
+
+    println!("Finished creating secret \"{}\" in namespace \"{}\"", secret_name, namespace);
+
+    Ok(())
 }
