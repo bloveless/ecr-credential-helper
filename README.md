@@ -34,12 +34,8 @@ spec:
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 1
   jobTemplate:
-    metadata:
-      creationTimestamp: null
     spec:
       template:
-        metadata:
-          creationTimestamp: null
         spec:
           restartPolicy: Never
           terminationGracePeriodSeconds: 30

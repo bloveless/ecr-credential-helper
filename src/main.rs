@@ -28,13 +28,23 @@ async fn main() -> Result<(), Box<dyn Error>> {
     std::env::set_var("RUST_LOG", "info,kube=trace");
 
     let aws_account_id = env::var("AWS_ACCOUNT_ID").unwrap();
-    // let aws_secret_access_key = env::var("AWS_SECRET_ACCESS_KEY").unwrap();
-    // let aws_access_key_id = env::var("AWS_ACCESS_KEY_ID").unwrap();
     let aws_default_region = env::var("AWS_DEFAULT_REGION").unwrap();
     let email = env::var("EMAIL").unwrap();
     let namespaces = env::var("NAMESPACES").unwrap();
 
-    let config = config::load_kube_config().await?;
+    // if running in a kubernetes cluster the assumption is that the KUBERNETES_SERVICE_HOST env
+    // var will exists and only in that environment
+    let config = match env::var("KUBERNETES_SERVICE_HOST") {
+        Ok(_) => {
+            println!("Found env KUBERNETES_SERVICE_HOST using in cluster config\n");
+            config::incluster_config()?
+        },
+        Err(_) => {
+            println!("Did not find env KUBERNETES_SERVICE_HOST using kube config file\n");
+            config::load_kube_config().await?
+        },
+    };
+
     let client = APIClient::new(config);
 
     let docker_login = get_docker_login_from_aws_ecr(
@@ -103,7 +113,7 @@ async fn delete_secret_in_namespace(client: APIClient, region: &str, namespace: 
     let req = sec.delete(secret_name.as_str(), &DeleteParams::default())?;
     let _ = client.request_text(req).await?;
 
-    println!("Successfully delete secret \"{}\" from namespace \"{}\"", secret_name, namespace);
+    println!("Successfully deleted secret \"{}\" from namespace \"{}\"", secret_name, namespace);
 
     Ok(())
 }
