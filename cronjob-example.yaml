@@ -18,11 +18,11 @@ spec:
           terminationGracePeriodSeconds: 30
           containers:
             - name: ecr-cred-helper
-              image: bloveless/ecr-credential-helper:0.6.0-alpha.7
+              image: bloveless/ecr-credential-helper:0.6.0-rust
               imagePullPolicy: IfNotPresent
               env:
                 - name: AWS_ACCOUNT_ID
-                  value: "391324319136"
+                  value: "3xxxxxxxxxx6"
                 - name: AWS_DEFAULT_REGION
                   value: us-west-2
                 - name: AWS_SECRET_ACCESS_KEY
@@ -38,4 +38,4 @@ spec:
                 - name: EMAIL
                   value: brennon.loveless@gmail.com 
                 - name: NAMESPACES
-                  value: "javascript30,fritzandandre,snippetbox,mockrift-com"
+                  value: "namespace1,namespace2,namespace3"
