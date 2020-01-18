@@ -41,7 +41,7 @@ spec:
           terminationGracePeriodSeconds: 30
           containers:
             - name: ecr-cred-helper
-              image: bloveless/ecr-credential-helper:0.5.0
+              image: bloveless/ecr-credential-helper:ADD_YOUR_TAG_HERE
               imagePullPolicy: IfNotPresent
               env:
                 - name: AWS_ACCOUNT_ID
