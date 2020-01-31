@@ -61,5 +61,5 @@ spec:
                 - name: EMAIL
                   value: my-cool-email@gmail.com
                 - name: NAMESPACES
-                  value: "default namespace-1 namespace-2"
+                  value: "default,namespace-1,namespace-2"
 ```
