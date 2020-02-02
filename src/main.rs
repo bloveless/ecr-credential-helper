@@ -57,7 +57,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     for namespace in namespaces.split(",") {
         println!("-- Processing namespace \"{}\" --", namespace);
-        delete_secret_in_namespace(client.clone(), aws_default_region.as_str(), namespace).await?;
+        match delete_secret_in_namespace(client.clone(), aws_default_region.as_str(), namespace).await {
+            Ok(_) => (),
+            Err(_) => println!("Unable to delete secret. Continuing"),
+        };
         update_secret_in_namespace(client.clone(), aws_default_region.as_str(), namespace, ecr_url.as_str(), docker_login.clone()).await?;
         println!("-- Finished processing namespace \"{}\" --\n", namespace);
     }
