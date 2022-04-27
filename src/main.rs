@@ -62,6 +62,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Err(_) => println!("Unable to delete secret. Continuing"),
         };
         update_secret_in_namespace(client.clone(), aws_default_region.as_str(), namespace, ecr_url.as_str(), docker_login.clone()).await?;
+        // TODO: I forgot to actually assign the secret to the service account
         println!("-- Finished processing namespace \"{}\" --\n", namespace);
     }
 

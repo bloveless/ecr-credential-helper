@@ -3,6 +3,8 @@ A docker image to help populate ecr credentials into service account secrets. Th
 in the NAMESPACES environment variable and will get/set a new docker registry secret for ECR. The secret will expire in
 12 hours so it would be useful to add this to a cronjob that runs less than 12 hours apart. See the example below.
 
+**This image has been moved to bloveless/docker-images**
+
 ## Environment variables
 All environment variables are required.
 
